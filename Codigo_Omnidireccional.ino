@@ -1,5 +1,4 @@
 // Código para robot omnidireccional
-// Camilo A. Ramírez Canales
 // Grupo 6 ; EI2001-5 ; Otoño 2018 ; FCFM ; U. de Chile
 // Taller de proyecto de robótica y mecatrónica
 
