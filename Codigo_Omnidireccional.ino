@@ -77,13 +77,38 @@ void RutinaEncoder(byte NEncoder){
     }
     UltimoT[Num] = micros();
   }
-  switch (NEncoder){
+  ComputarPID(NEncoder);
+  if (Avance[Num] != 1) {
+    analogWrite(MotorPWM[Num],byte(RapidezOutPID[Num]));
+  }
+}
+// --------------------------------------------------
+// Funciones útiles para manejo de PID
+// --------------------------------------------------
+// ApagarPID, función que dado el número de un PID, lo apaga
+void ApagarPID(byte NPID){
+  switch (NPID){
+    case 1: PID1.SetMode(MANUAL); break;
+    case 2: PID2.SetMode(MANUAL); break;
+    case 3: PID3.SetMode(MANUAL); break;
+  }
+}
+// --------------------------------------------------
+// EncenderPID, funcion que dado el número de un PID, lo enciende
+void EncenderPID(byte NPID){
+  switch (NPID){
+    case 1: PID1.SetMode(AUTOMATIC); break;
+    case 2: PID2.SetMode(AUTOMATIC); break;
+    case 3: PID3.SetMode(AUTOMATIC); break;
+  }
+}
+// --------------------------------------------------
+// ComputarPID, funcion que computa el PID asociado al número dado
+void ComputarPID(byte NPID){
+  switch (NPID){
     case 1: PID1.Compute(); break;
     case 2: PID2.Compute(); break;
     case 3: PID3.Compute(); break;
-  }
-  if (Avance[Num] != 1) {
-    analogWrite(MotorPWM[Num],byte(RapidezOutPID[Num]));
   }
 }
 // --------------------------------------------------
@@ -92,11 +117,7 @@ void RutinaEncoder(byte NEncoder){
 // Liberar, funcion que dado el numero de un motor ejecuta acciones necesarias para que no entregue torque y gire libremente
 void Liberar(byte NMotor){
   byte indice = NMotor - 1;
-  switch (NMotor){
-    case 1: PID1.SetMode(MANUAL); break;
-    case 2: PID2.SetMode(MANUAL); break;
-    case 3: PID3.SetMode(MANUAL); break;
-  }
+  ApagarPID(NMotor);
   digitalWrite(MotorCtrl[indice][0],LOW);
   digitalWrite(MotorCtrl[indice][1],LOW);
   RapidezAngDeseada[indice] = 0;
@@ -108,11 +129,7 @@ void Liberar(byte NMotor){
 // Frenar, funcion que dado el numero de un motor ejecuta acciones necesarias para frenarlo
 void Frenar(byte NMotor){
   byte indice = NMotor - 1;
-  switch (NMotor){
-    case 1: PID1.SetMode(MANUAL); break;
-    case 2: PID2.SetMode(MANUAL); break;
-    case 3: PID3.SetMode(MANUAL); break;
-  }
+  ApagarPID(NMotor);
   digitalWrite(MotorCtrl[indice][0],HIGH);
   digitalWrite(MotorCtrl[indice][1],HIGH);
   RapidezAngDeseada[indice] = 0;
@@ -124,44 +141,28 @@ void Frenar(byte NMotor){
 // Avanzar, funcion que dado el numero de un motor y una rapidez angular en RPM, ejecuta las acciones necesarias para que avance con las RPM indicadas
 void Avanzar(byte NMotor,float RPM){
   byte indice = NMotor - 1;
-  switch (NMotor){
-    case 1: PID1.SetMode(AUTOMATIC); break;
-    case 2: PID2.SetMode(AUTOMATIC); break;
-    case 3: PID3.SetMode(AUTOMATIC); break;
-  }
+  EncenderPID(NMotor);
   RapidezAngDeseada[indice] = RPM;
   RapidezSetpointPID[indice] = 255*RPM/MaxRPM;
   digitalWrite(MotorCtrl[indice][0],HIGH);
   digitalWrite(MotorCtrl[indice][1],LOW);
   Avance[indice] = 2;
   Frenado[indice] = false;
-  switch (NMotor){
-    case 1: PID1.Compute(); break;
-    case 2: PID2.Compute(); break;
-    case 3: PID3.Compute(); break;
-  }
+  ComputarPID(NMotor);
   analogWrite(MotorPWM[indice],byte(RapidezOutPID[indice]));
 }
 // --------------------------------------------------
 // Retroceder, funcion que dado el numero de un motor y una rapidez angular en RPM, ejecuta las acciones necesarias para que retroceda con las RPM indicadas
 void Retroceder(byte NMotor,float RPM){
   byte indice = NMotor - 1;
-  switch (NMotor){
-    case 1: PID1.SetMode(AUTOMATIC); break;
-    case 2: PID2.SetMode(AUTOMATIC); break;
-    case 3: PID3.SetMode(AUTOMATIC); break;
-  }
+  EncenderPID(NMotor);
   RapidezAngDeseada[indice] = -RPM;
   RapidezSetpointPID[indice] = 255*RPM/MaxRPM;
   digitalWrite(MotorCtrl[indice][0],LOW);
   digitalWrite(MotorCtrl[indice][1],HIGH);
   Avance[indice]= 0;
   Frenado[indice] = false;
-  switch (NMotor){
-    case 1: PID1.Compute(); break;
-    case 2: PID2.Compute(); break;
-    case 3: PID3.Compute(); break;
-  }
+  ComputarPID(NMotor);
   analogWrite(MotorPWM[indice],byte(RapidezOutPID[indice]));
 }
 void setup() {
