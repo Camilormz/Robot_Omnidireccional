@@ -29,3 +29,5 @@ Contiene 4 activities (ventanas de trabajo), dónde la organización de elemento
 - El derecho, una vez conectado envía un byte (0 o 1) que el Arduino interpreta para apagar o encender un led
 
 Se ha logrado principalmente la conexión Bluetooth y el envío de bytes simples, también está programada la recepción de Strings para recibirlas de Arduino y mostrarlas en un TextView, pero se muestra de forma errática esta información. El principal desafío actual es crear un protocolo de comunicación entre ambos dispositivos para poder enviar instrucciones en partícular funciones del Android al Arduino.
+
+Funciones que realizan las actividades mencionadas se encuentran en [MainActivity.java](Robot_Omnidireccional/ControlAndroid/app/src/main/java/cl/uchile/ing/controlomnidireccional/MainActivity.java).
