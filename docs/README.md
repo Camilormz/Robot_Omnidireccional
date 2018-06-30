@@ -31,3 +31,25 @@ Contiene 4 activities (ventanas de trabajo), dónde la organización de elemento
 Se ha logrado principalmente la conexión Bluetooth y el envío de bytes simples, también está programada la recepción de Strings para recibirlas de Arduino y mostrarlas en un TextView, pero se muestra de forma errática esta información. El principal desafío actual es crear un protocolo de comunicación entre ambos dispositivos para poder enviar instrucciones en partícular funciones del Android al Arduino.
 
 Funciones que realizan las actividades mencionadas se encuentran en [MainActivity.java](https://github.com/Camilormz/Robot_Omnidireccional/blob/master/ControlAndroid/app/src/main/java/cl/uchile/ing/controlomnidireccional/MainActivity.java).
+
+El código a agregar en el loop del archivo .ino con el que se ha testeado la aplicación corresponde a:
+```
+void loop() {
+  if(Serial.available()>0){
+    byte MsgRec[1];
+    Serial.readBytes(MsgRec,1);
+    if(MsgRec[0]==0){
+      digitalWrite(2,LOW);
+      Serial.print("Recibido, led apagado");
+    }
+    if(MsgRec[0]==1){
+      digitalWrite(2,HIGH);
+      Serial.print("Recibido, led encendido");
+    }
+    if(MsgRec[0]!=10 and MsgRec[0]!=13){ 
+      Serial.print("Caracter recibido: "+String(MsgRec[0]));
+    }
+  }
+  delay(10);
+}
+```
