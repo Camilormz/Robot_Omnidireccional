@@ -6,6 +6,9 @@
 // perpendicular al y hacia la derecha (formando un plano cartesiano), los ángulos se miden en sentido antihorario, el sistema descrito es solidario al movimiento del robot.
 // Todo el programa se basa en el sistema mencionado.
 // --------------------------------------------------
+// La interacción con el usuario se realiza mediante el puerto serial, mediante el ingreso de textos con una sintaxis de formato <Param1,Param2,Param3,...>, en dónde Param1
+// corresponde a un identificador de la función a ejectar por el programa y los parámetros subsiguientes los argumentos de esta función.
+// --------------------------------------------------
 
 #include <PID_v1.h> // Librería de PID
 #include <math.h>   // Librería de funciones matemáticas
@@ -24,7 +27,7 @@ double GradsARads(double grads){return PI*grads/180;}
 // --------------------------------------------------
 // Matriz de pines de control para los motores (La fila determina el numero de motor y la columna el de control), los pines para el control #1 son 30, 33, 35 para los motores 1, 2 y 3
 // respectivamente en el diagrama y los pines para el control #2 son 32, 35 y 34 para los motores 1, 2 y 3 respeticamente el diagrama.
-const byte MotorCtrl[3][2] = {{30,31},{33,32},{35,34}};
+const byte MotorCtrl[3][2] = {{A0,31},{33,32},{35,34}}; // Cambiar A0 por 30 para uso en DUE
 // Lista de pines PWM (Habilitadores) para los motores segun su posición (pines 2, 3 y 4 para los motores 1, 2 y 3 respectivamente en el diagrama)
 const byte MotorPWM[3] = {2,3,4};
 // Lista de pines interruptores para encoders segun su posición (pines 49, 51 y 53 para encoders 1, 2 y 3 respectivamente en el diagrama)
@@ -74,6 +77,20 @@ PID PIDs[3] = {PID(&RapidezInPID[0],&RapidezOutPID[0],&RapidezSetpointPID[0],Kp,
 // Variables de trabajo para funciones asociadas al movimiento completo del robot
 double RPMMov[3];     // Lista que almacena los valores trabajados por MovimientoXYRot(), ver función para mas detalles
 double RPMLimMov[3];  // Lista que almacena los valores trabajados por LimitarMov(), ver función para mas detalles
+
+// Constantes y arreglos usados en la comunicacion serial
+char Caracter;                            // Inicializa la variable Caracter, que irá almacenando uno a uno los caracteres recibidos por el serial para ser analizados
+const char CaractIni = '<';               // Caracter que indica el inicio de una nueva instrucción
+const char CaractFin = '>';               // Caracter que indica el final de la instruccion que se esté recibiendo
+const char Delim[2] = {',','\0'};         // String en formato C que indica el separador de parámetros en las instrucciones recibidas
+const byte SizeBuffer = 128;              // Tamaño máximo del buffer que almacenará la instrucción a trabajar
+const byte MxSizeParam = 32;              // Tamaño máximo del espacio donde se almacenarán los parámetros
+const byte MxCantParam = 8;               // Cantidad máxima de parámetros que serán almacenados de una instrucción
+byte IndiceCaract = 0;                    // Indice que recorre el Buffer escribiéndolo con la instrucción
+byte IndiceParam = 0;                     // Indice que recorre el arreglo de parámetros para que sea escrito cada uno en su lugar correspondiente
+char Buffer[SizeBuffer];                  // Variable buffer que almacena el texto recibido por el serial
+char Param[MxSizeParam][MxCantParam];     // Matriz que almacena los parámetros extraidos dela lectura del Serial
+char SizeParam = MxSizeParam*MxCantParam; // Tamaño total de la matriz Param
 
 // --------------------------------------------------
 // Funciones útiles para encoders e interrupciones
@@ -215,15 +232,20 @@ bool LimitarMov(double RPM1,double RPM2,double RPM3){
   }
 }
 // --------------------------------------------------
+// MoverMotores, función que dados tres valores en RPM, da ordenes a los motores para que se muevan a esa rapidez en el sentido dado por el signo de los argumentos de la función
+void MoverMotores(double VMot1,double VMot2,double VMot3){
+  LimitarMov(VMot1,VMot2,VMot3);
+  for(byte i=0;i<3;i++){
+    if      (RPMLimMov[i] < 0) {Retroceder(i+1,-RPMLimMov[i]);}
+    else if (RPMLimMov[i] == 0){Liberar(i+1);}
+    else                      {Avanzar(i+1,RPMLimMov[i]);}
+  }
+}
+// --------------------------------------------------
 // MoverXYRotRobot, funcion que ejecuta las ordenes necesarias para mover el robot con parámetros análogos a la función MovimientoXYRot
 void MoverXYRotRobot(double Vx,double Vy,double Rot){
   MovimientoXYRot(Vx,Vy,Rot);
-  LimitarMov(RPMMov[0],RPMMov[1],RPMMov[2]);
-  for(byte i=0;i<3;i++){
-    if     (RPMMov[i] < 0) {Retroceder(i+1,-RPMMov[i]);}
-    else if(RPMMov[i] == 0){Liberar(i+1);}
-    else                   {Avanzar(i+1,RPMMov[i]);}
-  }
+  MoverMotores(RPMMov[0],RPMMov[1],RPMMov[2]);
 }
 // --------------------------------------------------
 // FrenarRobot, funcion que ejecuta las ordenes necesarias para frenar el robot
@@ -232,9 +254,92 @@ void FrenarRobot(){Frenar(1);Frenar(2);Frenar(3);}
 // MoverPolarRotRobot, funcion que ejecuta las ordenes necesarias para mover el robot usando un sistema polar, dónde los ángulos se miden desde del eje y cartesiano, el primer parámetro
 // es la rapidez resultante, el segundo el ángulo y el tercero la rotación (Análoga a MoverXYRotRobot())
 void MoverPolarRotRobot(double Rapidez,double Angulo,double Rot){
-  double VelX = -Rapidez*sin(Angulo);
-  double VelY = Rapidez*cos(Angulo);
+  double Grados = GradosARad(Angulo);
+  double VelX = -Rapidez*sin(Grados);
+  double VelY = Rapidez*cos(Grados);
   MoverXYRotRobot(VelX,VelY,Rot);
+}
+// --------------------------------------------------
+// Funciones para comunicación serial
+// --------------------------------------------------
+// ParseBuffer, función que al ser ejecutada trabaja el contenido ASCII almacenado en la variable buffer y realiza un anáslis gramatical de este para separar el string por el delimitador
+// definido, almacenando los parámetros resultatantes (tokens) en la matriz Param.
+void ParseBuffer(){
+  memset(Param,'\0',SizeParam);
+  char *Token = strtok(Buffer,Delim);
+  while(Token != NULL){
+    strcpy(Param[IndiceParam],Token);
+    Token = strtok(NULL,Delim);
+    IndiceParam++;
+  }
+  IndiceParam = 0;
+  memset(Buffer,'\0',SizeBuffer);
+}
+// --------------------------------------------------
+// EjecutarComandos, función que lee los parámetros contenidos en la matriz Param y los trabaja en función de lo que sea necesario siguiendo la sintaxis <Funcion,Arg1,Arg2,Arg3,...>
+// Es decir, el primer parámetro corresponde al identificador de la función y los siguientes a los argumentos que esta requiera, identificadores a funciones del robot corresponden a:
+// XYR : MoverXYRotRobot(), recibe 3 argumentos
+// POL : MoverPolarRotRobot(), recibe 3 argumentos
+// MMT : MoverMotores(), recibe 3 argumentos
+// FRN : FrenarRobot(), no recibe argumentos
+void EjecutarComandos(){
+  String Funcion = String(Param[0]);
+  if      (Funcion.equals("XYR")){
+    double VxSR = atof(Param[1]);
+    double VySR = atof(Param[2]);
+    double RotSR = atof(Param[3]);
+    MoverXYRotRobot(VxSR,VySR,RotSR);
+  }
+  else if (Funcion.equals("POL")){
+    double RapidezSR = atof(Param[1]);
+    double AnguloSR = atof(Param[2]);
+    double RotSR = atof(Param[3]);
+    MoverPolarRotRobot(RapidezSR,AnguloSR,RotSR);
+  }
+  else if (Funcion.equals("MMT")){
+    double VelM1SR = atof(Param[1]);
+    double VelM2SR = atof(Param[2]);
+    double VelM3SR = atof(Param[3]);
+    MoverMotores(VelM1SR,VelM2SR,VelM3SR);
+  }
+  else if (Funcion.equals("FRN")){
+    FrenarRobot();
+  }
+  // Caso para debugging y demostración, a eliminar en versión final
+  else if (Funcion.equals("LED")){
+    byte LedAzul = 12;
+    byte LedRojo = 11;
+    pinMode(LedAzul,OUTPUT);
+    pinMode(LedRojo,OUTPUT);
+    if (0==atoi(Param[1])){digitalWrite(LedAzul,LOW);}
+    if (1==atoi(Param[1])){digitalWrite(LedAzul,HIGH);}
+    if (0==atoi(Param[2])){digitalWrite(LedRojo,LOW);}
+    if (1==atoi(Param[2])){digitalWrite(LedRojo,HIGH);}
+  }
+  else{
+    Serial.println("Función desconocida");
+  }
+}
+// --------------------------------------------------
+// RecepcionSerial, función principal que administra la comunicación con el puerto serial, validando los datos recibidos e invocándo funciones que los almacenen en Buffer, en caso de
+// recibir el caracter especial definido como caracter inicial limpia el buffer, el caso de recibir el caracter especial definido como caracter final ejecuta el análisis de los datos
+// recibidos, todo ocurre mientras hayan datos disponibles en el serial, en caso contrario la función no ejecuta acción.
+void RecepcionSerial(){
+  while(Serial.available()>0){
+    Caracter = Serial.read();
+    if (Caracter == CaractIni){
+      memset(Buffer,'\0',SizeBuffer);
+      IndiceCaract = 0;
+    }
+    else if (Caracter == CaractFin){
+      ParseBuffer();
+      EjecutarComandos();
+    }
+    else{
+      Buffer[IndiceCaract] = Caracter;
+      IndiceCaract++;
+    }
+  }
 }
 // --------------------------------------------------
 // Funciones principales de iniciación y ciclo de Arduino
@@ -258,9 +363,12 @@ void setup() {
   PIDs[0].SetSampleTime(TiempoDeMuestreo);
   PIDs[1].SetSampleTime(TiempoDeMuestreo);
   PIDs[2].SetSampleTime(TiempoDeMuestreo);
+  // Inicialización de la comunicación serial
+  Serial.begin(9600);
 }
 void loop() {
-  // Vacío, depende del método de entrada de instrucciones
+  RecepcionSerial();
+  delay(10);
 }
 // --------------------------------------------------
 // Interruptores accionados por encoders
