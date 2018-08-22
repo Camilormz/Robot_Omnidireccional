@@ -15,7 +15,7 @@
 #include <math.h>   // Librería de funciones matemáticas
 
 // --------------------------------------------------
-// Funciones de conversión de unidades
+// Funciones de conversión de unidades y utilidad matemática
 // --------------------------------------------------
 // GradosARad, función que dado un ángulo en grados sexagesimales, lo convierte a radianes
 double GradosARad(double Grados) {
@@ -29,12 +29,16 @@ double RadsARPM(double rads) {
 double GradsARads(double grads) {
   return PI * grads / 180;
 }
+// Cerca, función que dado dos valores, verifica que la distancia entre ambos sea menor a un épsilo definido
+bool Cerca(double valor1, double valor2) {
+  return abs(valor1-valor2) < 1;
+}
 // --------------------------------------------------
 // Declaración de variables, pines y constantes
 // --------------------------------------------------
 // Matriz de pines de control para los motores (La fila determina el numero de motor y la columna el de control), los pines para el control #1 son 30, 33, 35 para los motores 1, 2 y 3
 // respectivamente en el diagrama y los pines para el control #2 son 32, 35 y 34 para los motores 1, 2 y 3 respeticamente el diagrama.
-const byte MotorCtrl[3][2] = {{A0, 31}, {33, 32}, {35, 34}}; // Cambiar A0 por 30 para uso en DUE
+const byte MotorCtrl[3][2] = {{35, 37}, {31, 33}, {39, 41}}; // Cambiar A0 por 30 para uso en DUE
 // Lista de pines PWM (Habilitadores) para los motores segun su posición (pines 2, 3 y 4 para los motores 1, 2 y 3 respectivamente en el diagrama)
 const byte MotorPWM[3] = {2, 3, 4};
 /*// Lista de pines interruptores para encoders segun su posición (pines 49, 51 y 53 para encoders 1, 2 y 3 respectivamente en el diagrama)
@@ -55,7 +59,7 @@ double RapidezInPID[3] = {0, 0, 0};             // Lista de rapideces angulares 
 // Constantes de funcionamiento y especificaciones del robot
 const float MaxRPM = 60;                  // Rapidez angular máxima que los motores son capaces de entregar en RPM
 const double RadioRuedas = 50;            // Radio de las ruedas en mm
-const double DistanciaAlCM = 250;         // Distancia desde el plano de giro de la rueda al centro de masas del robot en mm
+const double DistanciaAlCM = 170;         // Distancia desde el plano de giro de la rueda al centro de masas del robot en mm
 const double AngRuedas[3] = {0, 120, 240}; // Lista que almacena el angulo que forma el eje centro de masas - rueda con respecto al eje y en grados
 const double AngRadRuedas[3] = {GradosARad(AngRuedas[0]), GradosARad(AngRuedas[1]), GradosARad(AngRuedas[2])}; // Lista que almacena lo mismo que AngRuedas pero en radianes
 
@@ -65,9 +69,9 @@ const byte TotalPerf = 40;                // Número total de perforaciones en e
 const long TiempoParaInterrupcion = 5000; // Tiempo en el cual interrupciones sucesivas de menor tiempo se omitiran en el debouncing en microsegundos
 volatile long UltimoT[3] = {0, 0, 0};     // Tiempos de control para debouncing para las interrupciones de los encoders segun su posición en la lista
 
-// Variables de estado para el robot
+// Variables de estado para el robot*/
 double RapidezAngDeseada[3] = {0, 0, 0}; // Lista que almacena a que rapidez angular que desea que funcione el motor corrspondiente a la posición en la lista en RPM
-double RapidezSetpointPID[3];           // Lista que almacena los setpoints de rapidez angular para cada motor en el rango PWM correspondiente
+/*double RapidezSetpointPID[3];           // Lista que almacena los setpoints de rapidez angular para cada motor en el rango PWM correspondiente
 byte Avance[3] = {0, 0, 0};             // Variable que almacena el estado de mov. del motor en la pos. correspondiente (0 a retroceso, 1 a detención (libre o frenada) y 2 a avance)
 bool Frenado[3] = {true, true, true};   // Variable que almacena el estado de frenado del robot para el motor de la posicion correspondietne en la lista
 
@@ -136,11 +140,13 @@ void RutinaEncoder(byte NEncoder) {
 // --------------------------------------------------
 // Liberar, funcion que dado el numero de un motor ejecuta acciones necesarias para que no entregue torque y gire libremente
 void Liberar(byte NMotor) {
+  delay(500);
   byte indice = NMotor - 1;
   /*PIDs[indice].SetMode(MANUAL);*/
   digitalWrite(MotorCtrl[indice][0], LOW);
   digitalWrite(MotorCtrl[indice][1], LOW);
-  /*RapidezAngDeseada[indice] = 0;
+  RapidezAngDeseada[indice] = 0;
+  Serial.println("Motor "+String(NMotor)+": liberado");/*
   RapidezSetpointPID[indice] = 0;
   Avance[indice] = 1;
   Frenado[indice] = false;*/
@@ -148,25 +154,29 @@ void Liberar(byte NMotor) {
 // --------------------------------------------------
 // Frenar, funcion que dado el numero de un motor ejecuta acciones necesarias para frenarlo
 void Frenar(byte NMotor) {
+  delay(500);
   byte indice = NMotor - 1;
   /*PIDs[indice].SetMode(MANUAL);*/
   digitalWrite(MotorCtrl[indice][0], HIGH);
   digitalWrite(MotorCtrl[indice][1], HIGH);
-  /*RapidezAngDeseada[indice] = 0;
-  RapidezSetpointPID[indice] = 0;
+  RapidezAngDeseada[indice] = 0;
+  Serial.println("Motor "+String(NMotor)+": frenado");
+  /*RapidezSetpointPID[indice] = 0;
   Avance[indice] = 1;
   Frenado[indice] = true;*/
 }
 // --------------------------------------------------
 // Avanzar, funcion que dado el numero de un motor y una rapidez angular en RPM, ejecuta las acciones necesarias para que avance con las RPM indicadas
 void Avanzar(byte NMotor, double RPM) {
+  delay(500);
   byte indice = NMotor - 1;
-  /*PIDs[indice].SetMode(AUTOMATIC);
+  /*PIDs[indice].SetMode(AUTOMATIC);*/
   RapidezAngDeseada[indice] = RPM;
-  RapidezSetpointPID[indice] = 255 * RPM / MaxRPM;*/
+  /*RapidezSetpointPID[indice] = 255 * RPM / MaxRPM;*/
   digitalWrite(MotorCtrl[indice][0], HIGH);
   digitalWrite(MotorCtrl[indice][1], LOW);
   analogWrite(MotorPWM[indice],255*RPM/MaxRPM);
+  Serial.println("Motor "+String(NMotor)+": avanzar "+String(RPM)+" RPM");
   /*Avance[indice] = 2;
   Frenado[indice] = false;
   PIDs[indice].Compute();
@@ -175,13 +185,15 @@ void Avanzar(byte NMotor, double RPM) {
 // --------------------------------------------------
 // Retroceder, funcion que dado el numero de un motor y una rapidez angular en RPM, ejecuta las acciones necesarias para que retroceda con las RPM indicadas
 void Retroceder(byte NMotor, double RPM) {
+  delay(500);
   byte indice = NMotor - 1;
-  /*PIDs[indice].SetMode(AUTOMATIC);
+  /*PIDs[indice].SetMode(AUTOMATIC);*/
   RapidezAngDeseada[indice] = -RPM;
-  RapidezSetpointPID[indice] = 255 * RPM / MaxRPM;*/
+  /*RapidezSetpointPID[indice] = 255 * RPM / MaxRPM;*/
   digitalWrite(MotorCtrl[indice][0], LOW);
   digitalWrite(MotorCtrl[indice][1], HIGH);
   analogWrite(MotorPWM[indice],255*RPM/MaxRPM);
+  Serial.println("Motor "+String(NMotor)+": retroceder "+String(RPM)+" RPM");
   /*Avance[indice] = 0;
   Frenado[indice] = false;
   PIDs[indice].Compute();
@@ -225,6 +237,9 @@ void MovimientoXYRot(double Vx, double Vy, double Rot) {
   RPMMov[0] = RPM1;
   RPMMov[1] = RPM2;
   RPMMov[2] = RPM3;
+  Serial.println("RPM 1 resultante: "+String(RPM1));
+  Serial.println("RPM 2 resultante: "+String(RPM2));
+  Serial.println("RPM 3 resultante: "+String(RPM3));
 }
 // --------------------------------------------------
 // LimitarMov, funcion que dados 3 valores correspondientes a RPM que debieran tener los motores para mover el robot de cierta forma, revisa que no sobrepasen las RPM máximas del mismo
@@ -252,11 +267,11 @@ bool LimitarMov(double RPM1, double RPM2, double RPM3) {
 void MoverMotores(double VMot1, double VMot2, double VMot3) {
   LimitarMov(VMot1, VMot2, VMot3);
   for (byte i = 0; i < 3; i++) {
-    if      (RPMLimMov[i] < 0) {
-      Retroceder(i + 1, -RPMLimMov[i]);
-    }
-    else if (RPMLimMov[i] == 0) {
+    if      (Cerca(RPMLimMov[i],0)){
       Liberar(i + 1);
+    }
+    else if (RPMLimMov[i] < 0) {
+      Retroceder(i + 1, -RPMLimMov[i]);
     }
     else                      {
       Avanzar(i + 1, RPMLimMov[i]);
