@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Robot Omnidireccional</string>
+    <string name="Flecha_Arriba">⬆️</string>
+    <string name="Flecha_ArribaIzq">↖️</string>
+    <string name="Flecha_ArribaDer">↗️</string>
+    <string name="Flecha_Izquierda">⬅️</string>
+    <string name="Flecha_Derecha">➡️</string>
+    <string name="Flecha_AbajoIzq">↙️</string>
+    <string name="Flecha_Abajo">⬇️</string>
+    <string name="Flecha_AbajoDer">↘️</string>
+    <string name="Flecha_Antihorario">↪️</string>
+    <string name="Flecha_Horario">↩️</string>
+    <string name="Freno">🛑</string>
+    <string name="BotonBT">Conectar a Bluetooth</string>
+</resources>

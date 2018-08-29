@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".Principal">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginLeft="8dp"
+        android:layout_marginRight="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical|center_horizontal|center"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.497">
+
+        <TableLayout
+            android:id="@+id/MatrizDirecciones"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginEnd="8dp"
+            android:layout_marginLeft="9dp"
+            android:layout_marginRight="8dp"
+            android:layout_marginStart="9dp"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <TableRow
+                android:id="@+id/MDir1Fila"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center">
+
+                <Button
+                    android:id="@+id/BotAdelanteIzq"
+                    style="@android:style/Widget.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:onClick="InstruccionAdelanteIzq"
+                    android:text="@string/Flecha_ArribaIzq"
+                    android:textSize="40sp"
+                    tools:layout_editor_absoluteX="47dp"
+                    tools:layout_editor_absoluteY="45dp"
+                    tools:text="RI" />
+
+                <Button
+                    android:id="@+id/BotAdelante"
+                    style="@android:style/Widget.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:onClick="InstruccionAdelante"
+                    android:text="@string/Flecha_Arriba"
+                    android:textSize="40sp"
+                    tools:layout_editor_absoluteX="171dp"
+                    tools:layout_editor_absoluteY="45dp"
+                    tools:text="R" />
+
+                <Button
+                    android:id="@+id/BotAdelanteDer"
+                    style="@android:style/Widget.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:onClick="InstruccionAdelanteDer"
+                    android:text="@string/Flecha_ArribaDer"
+                    android:textSize="40sp"
+                    tools:layout_editor_absoluteX="280dp"
+                    tools:layout_editor_absoluteY="45dp"
+                    tools:text="RD" />
+
+            </TableRow>
+
+            <TableRow
+                android:id="@+id/MDir2Fila"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center">
+
+                <Button
+                    android:id="@+id/BotIzquierda"
+                    style="@android:style/Widget.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:onClick="InstruccionIzquierda"
+                    android:text="@string/Flecha_Izquierda"
+                    android:textSize="40sp"
+                    tools:layout_editor_absoluteX="47dp"
+                    tools:layout_editor_absoluteY="105dp"
+                    tools:text="I" />
+
+                <Button
+                    android:id="@+id/BotFreno"
+                    style="@android:style/Widget.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:onClick="InstruccionFreno"
+                    android:text="@string/Freno"
+                    android:textSize="40sp"
+                    tools:layout_editor_absoluteX="171dp"
+                    tools:layout_editor_absoluteY="115dp"
+                    tools:text="F" />
+
+                <Button
+                    android:id="@+id/BotDerecha"
+                    style="@android:style/Widget.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:onClick="InstruccionDerecha"
+                    android:text="@string/Flecha_Derecha"
+                    android:textSize="40sp"
+                    tools:layout_editor_absoluteX="280dp"
+                    tools:layout_editor_absoluteY="125dp"
+                    tools:text="D" />
+            </TableRow>
+
+            <TableRow
+                android:id="@+id/MDir3Fila"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center">
+
+                <Button
+                    android:id="@+id/BotAtrasIzq"
+                    style="@android:style/Widget.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:onClick="InstruccionAtrasIzq"
+                    android:text="@string/Flecha_AbajoIzq"
+                    android:textSize="40sp"
+                    tools:layout_editor_absoluteX="47dp"
+                    tools:layout_editor_absoluteY="185dp"
+                    tools:text="BI" />
+
+                <Button
+                    android:id="@+id/BotAtras"
+                    style="@android:style/Widget.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:onClick="InstruccionAtras"
+                    android:text="@string/Flecha_Abajo"
+                    android:textSize="40sp"
+                    tools:layout_editor_absoluteX="163dp"
+                    tools:layout_editor_absoluteY="185dp"
+                    tools:text="B" />
+
+                <Button
+                    android:id="@+id/BotAtrasDer"
+                    style="@android:style/Widget.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:onClick="InstruccionAtrasDer"
+                    android:text="@string/Flecha_AbajoDer"
+                    android:textSize="40sp"
+                    tools:layout_editor_absoluteX="280dp"
+                    tools:layout_editor_absoluteY="193dp"
+                    tools:text="BD" />
+
+            </TableRow>
+
+        </TableLayout>
+
+        <TableRow
+            android:id="@+id/FilaRotBT"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginBottom="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginLeft="8dp"
+            android:layout_marginRight="8dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="16dp"
+            android:gravity="center_horizontal|center"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/MatrizDirecciones">
+
+            <Button
+                android:id="@+id/BotHorario"
+                style="@android:style/Widget.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="InstruccionRotacionHor"
+                android:text="@string/Flecha_Horario"
+                android:textSize="40sp"
+                tools:layout_editor_absoluteX="47dp"
+                tools:layout_editor_absoluteY="259dp"
+                tools:text="H" />
+
+            <Button
+                android:id="@+id/ConectarBT"
+                style="@android:style/Widget.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="ConectarBT"
+                android:text="@string/BotonBT"
+                tools:layout_editor_absoluteX="148dp"
+                tools:layout_editor_absoluteY="277dp"
+                tools:text="BT" />
+
+            <Button
+                android:id="@+id/BotAntihorario"
+                style="@android:style/Widget.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:onClick="InstruccionRotacionAntihor"
+                android:text="@string/Flecha_Antihorario"
+                android:textSize="40sp"
+                tools:layout_editor_absoluteX="259dp"
+                tools:layout_editor_absoluteY="287dp"
+                tools:text="AH" />
+        </TableRow>
+
+    </LinearLayout>
+
+</android.support.constraint.ConstraintLayout>

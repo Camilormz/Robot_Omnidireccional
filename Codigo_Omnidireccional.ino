@@ -1,17 +1,19 @@
 // Código para robot omnidireccional
 // Grupo 6 ; EI2001-5 ; Otoño 2018 ; FCFM ; U. de Chile
 // Taller de proyecto de robótica y mecatrónica
+// Nicolás Lagos L., Camilo Ramírez C., Joaquín Silva C.
 // --------------------------------------------------
 // Nota: El origen del robot estará en su centro de masa (ortocentro del triangulo truncado del armazón), el eje y apunta hacia la rueda 1 (dónde se ubica el motor 1), el eje x es
 // perpendicular al y hacia la derecha (formando un plano cartesiano), los ángulos se miden en sentido antihorario, el sistema descrito es solidario al movimiento del robot.
 // Todo el programa se basa en el sistema mencionado.
 // --------------------------------------------------
 // La interacción con el usuario se realiza mediante el puerto serial, mediante el ingreso de textos con una sintaxis de formato <Param1,Param2,Param3,...>, en dónde Param1
-// corresponde a un identificador de la función a ejectar por el programa y los parámetros subsiguientes los argumentos de esta función.
+// corresponde a un identificador de la función a ejecutar por el programa y los parámetros subsiguientes los argumentos de esta función.
 // --------------------------------------------------
 
 #include <PID_v1.h> // Librería de PID
 #include <math.h>   // Librería de funciones matemáticas
+// #include <PID_AutoTune_v0.h>
 
 // --------------------------------------------------
 // Funciones de conversión de unidades y utilidad matemática
@@ -56,7 +58,8 @@ volatile float RPMMed[3];                       // Lista de rapideces angulares 
 double RapidezInPID[3] = {0, 0, 0};             // Lista de rapideces angulares medidas ajustadas al rango PWM requerido por los motores
 
 // Constantes de funcionamiento y especificaciones del robot
-const float MaxRPM = 50;                  // Rapidez angular máxima que los motores son capaces de entregar en RPM
+const float MaxRPM = 60;                  // Rapidez angular máxima que los motores son capaces de entregar en RPM
+const float LimRPM = 50;                  // Límite de funcionamiento de los motores en RPM
 const double RadioRuedas = 50;            // Radio de las ruedas en mm
 const double DistanciaAlCM = 170;         // Distancia desde el plano de giro de la rueda al centro de masas del robot en mm
 const double AngRuedas[3] = {0, 120, 240}; // Lista que almacena el angulo que forma el eje centro de masas - rueda con respecto al eje y en grados
@@ -65,19 +68,20 @@ const double AngRadRuedas[3] = {GradosARad(AngRuedas[0]), GradosARad(AngRuedas[1
 // Constantes y variables relacionadas a los encoders e interrupciones
 const byte Nverificador = 1;              // Establece la resolución de medida de la velocidad angular
 const byte TotalPerf = 40;                // Número total de perforaciones en el disco (Perforaciones en un ángulo 2pi)
+const long TiempoDetencion = 500;         // Tiempo en el cual al no haber interrupciones consecutivas se considerará como detenido el motor en milisegundos
 const long TiempoParaInterrupcion = 5000; // Tiempo en el cual interrupciones sucesivas de menor tiempo se omitiran en el debouncing en microsegundos
 volatile long UltimoT[3] = {0, 0, 0};     // Tiempos de control para debouncing para las interrupciones de los encoders segun su posición en la lista
 
 // Variables de estado para el robot
 double RapidezAngDeseada[3] = {0, 0, 0}; // Lista que almacena a que rapidez angular que desea que funcione el motor corrspondiente a la posición en la lista en RPM
 double RapidezSetpointPID[3];           // Lista que almacena los setpoints de rapidez angular para cada motor en el rango PWM correspondiente
-byte Avance[3] = {0, 0, 0};             // Variable que almacena el estado de mov. del motor en la pos. correspondiente (0 a retroceso, 1 a detención (libre o frenada) y 2 a avance)
+byte Avance[3] = {1, 1, 1};             // Variable que almacena el estado de mov. del motor en la pos. correspondiente (0 a retroceso, 1 a detención (libre o frenada) y 2 a avance)
 bool Frenado[3] = {true, true, true};   // Variable que almacena el estado de frenado del robot para el motor de la posicion correspondietne en la lista
 
 // Declaraciones y variables para control PID
-double Kp = 1;                // Constante proporcional de los PID
-double Ki = 1;                // Constante integral de los PID
-double Kd = 0.1;                // Constante derivativa de los PID
+double Kp = 1;              // Constante proporcional de los PID
+double Ki = 3;                // Constante integral de los PID
+double Kd = 0;              // Constante derivativa de los PID
 double RapidezOutPID[3];      // Lista de rapideces angulares de salida post control PID ajustadas al rango PWM requerido por los motores
 int TiempoDeMuestreo = 200;   // Tiempo de computo del PID en ms
 PID PIDs[3] = {PID(&RapidezInPID[0], &RapidezOutPID[0], &RapidezSetpointPID[0], Kp, Ki, Kd, DIRECT, P_ON_M), // Lista de PIDs, donde cada cual controla la rapidez angular del motor
@@ -126,11 +130,7 @@ void RutinaEncoder(byte NEncoder) {
       RapidezInPID[Num] = RPMMed[Num] * 255.0 / double(MaxRPM);
       Tiempo_Ini[Num] = millis();
       Contador[Num] = 0;
-      //Serial.println("RPM medidas ("+String(NEncoder)+"): "+String(RPMMed[Num]));
       PIDs[Num].Compute();
-      //Serial.println("PID Input ("+String(NEncoder)+"): "+String(RapidezInPID[Num]));
-      //Serial.println("PID Output ("+String(NEncoder)+"): "+String(RapidezOutPID[Num])) ;
-      //Serial.println("PID Setpoint ("+String(NEncoder)+"): "+String(RapidezSetpointPID[Num]));
     }
     UltimoT[Num] = micros();
   }
@@ -139,11 +139,23 @@ void RutinaEncoder(byte NEncoder) {
   }
 }
 // --------------------------------------------------
+// VerificarDetenciones, función implementada en el loop que verifica el tiempo transcurrido en las últimas interrupciones de los encoder, en caso que el motor asociado a ete deba
+// moverse y no hayan interrupciones en un tiempo definido, se ajusta la rapidez del motor a cero y se procede a ejecutar el control PID.
+void VerificarDetenciones(){
+  for (byte i = 0; i < 3; i++){
+    if ((abs(long(Tiempo_Fin[i])-long(millis()))>TiempoDetencion) &&  (Avance[i]!=1)){
+      RapidezInPID[i] = 0;
+      PIDs[i].Compute();
+      analogWrite(MotorPWM[i], byte(RapidezOutPID[i]));
+      Serial3.println("Rueda "+String(i+1)+" Detenida");
+    }
+  }
+}
+// --------------------------------------------------
 // Funciones de movimiento de los motores
 // --------------------------------------------------
 // Liberar, funcion que dado el numero de un motor ejecuta acciones necesarias para que no entregue torque y gire libremente
 void Liberar(byte NMotor) {
-  delay(500);
   byte indice = NMotor - 1;
   PIDs[indice].SetMode(MANUAL);
   digitalWrite(MotorCtrl[indice][0], LOW);
@@ -152,12 +164,11 @@ void Liberar(byte NMotor) {
   RapidezSetpointPID[indice] = 0;
   Avance[indice] = 1;
   Frenado[indice] = false;
-  Serial.println("Motor "+String(NMotor)+": liberado");
+  Serial3.println("Motor "+String(NMotor)+": liberado");
 }
 // --------------------------------------------------
 // Frenar, funcion que dado el numero de un motor ejecuta acciones necesarias para frenarlo
 void Frenar(byte NMotor) {
-  delay(500);
   byte indice = NMotor - 1;
   PIDs[indice].SetMode(MANUAL);
   digitalWrite(MotorCtrl[indice][0], HIGH);
@@ -166,12 +177,11 @@ void Frenar(byte NMotor) {
   RapidezSetpointPID[indice] = 0;
   Avance[indice] = 1;
   Frenado[indice] = true;
-  Serial.println("Motor "+String(NMotor)+": frenado");
+  Serial3.println("Motor "+String(NMotor)+": frenado");
 }
 // --------------------------------------------------
 // Avanzar, funcion que dado el numero de un motor y una rapidez angular en RPM, ejecuta las acciones necesarias para que avance con las RPM indicadas
 void Avanzar(byte NMotor, double RPM) {
-  delay(500);
   byte indice = NMotor - 1;
   PIDs[indice].SetMode(AUTOMATIC);
   RapidezAngDeseada[indice] = RPM;
@@ -180,14 +190,14 @@ void Avanzar(byte NMotor, double RPM) {
   digitalWrite(MotorCtrl[indice][1], LOW);
   Avance[indice] = 2;
   Frenado[indice] = false;
+  analogWrite(MotorPWM[indice], byte(RapidezSetpointPID[indice]));
+  Tiempo_Fin[indice] = millis();
   PIDs[indice].Compute();
-  analogWrite(MotorPWM[indice], byte(RapidezOutPID[indice]));
-  Serial.println("Motor "+String(NMotor)+": avanzar "+String(RPM)+" RPM");
+  Serial3.println("Motor "+String(NMotor)+": avanzar "+String(RPM)+" RPM");
 }
 // --------------------------------------------------
 // Retroceder, funcion que dado el numero de un motor y una rapidez angular en RPM, ejecuta las acciones necesarias para que retroceda con las RPM indicadas
 void Retroceder(byte NMotor, double RPM) {
-  delay(500);
   byte indice = NMotor - 1;
   PIDs[indice].SetMode(AUTOMATIC);
   RapidezAngDeseada[indice] = -RPM;
@@ -196,9 +206,10 @@ void Retroceder(byte NMotor, double RPM) {
   digitalWrite(MotorCtrl[indice][1], HIGH);
   Avance[indice] = 0;
   Frenado[indice] = false;
-  PIDs[indice].Compute();
   analogWrite(MotorPWM[indice], byte(RapidezOutPID[indice]));
-  Serial.println("Motor "+String(NMotor)+": retroceder "+String(RPM)+" RPM");
+  Tiempo_Fin[indice] = millis();
+  PIDs[indice].Compute();
+  Serial3.println("Motor "+String(NMotor)+": retroceder "+String(RPM)+" RPM");
 }
 // --------------------------------------------------
 // Funciones para movimiento global del robot
@@ -238,9 +249,9 @@ void MovimientoXYRot(double Vx, double Vy, double Rot) {
   RPMMov[0] = RPM1;
   RPMMov[1] = RPM2;
   RPMMov[2] = RPM3;
-  Serial.println("RPM 1 resultante: "+String(RPM1));
-  Serial.println("RPM 2 resultante: "+String(RPM2));
-  Serial.println("RPM 3 resultante: "+String(RPM3));
+  Serial3.println("RPM 1 resultante: "+String(RPM1));
+  Serial3.println("RPM 2 resultante: "+String(RPM2));
+  Serial3.println("RPM 3 resultante: "+String(RPM3));
 }
 // --------------------------------------------------
 // LimitarMov, funcion que dados 3 valores correspondientes a RPM que debieran tener los motores para mover el robot de cierta forma, revisa que no sobrepasen las RPM máximas del mismo
@@ -249,8 +260,8 @@ void MovimientoXYRot(double Vx, double Vy, double Rot) {
 bool LimitarMov(double RPM1, double RPM2, double RPM3) {
   double MaxPar = max(abs(RPM1), abs(RPM2));
   double Max = max(MaxPar, abs(RPM3));
-  if (Max > MaxRPM) {
-    double factor = MaxRPM / Max;
+  if (Max > LimRPM) {
+    double factor = LimRPM / Max;
     RPMLimMov[0] = RPM1 * factor;
     RPMLimMov[1] = RPM2 * factor;
     RPMLimMov[2] = RPM3 * factor;
@@ -324,6 +335,7 @@ void ParseBuffer() {
 // POL : MoverPolarRotRobot(), recibe 3 argumentos
 // MMT : MoverMotores(), recibe 3 argumentos
 // FRN : FrenarRobot(), no recibe argumentos
+// PID : SetTunings(), recibe 3 argumentos 
 void EjecutarComandos() {
   String Funcion = String(Param[0]);
   if      (Funcion.equals("XYR")) {
@@ -347,6 +359,15 @@ void EjecutarComandos() {
   else if (Funcion.equals("FRN")) {
     FrenarRobot();
   }
+  else if (Funcion.equals("PID")) {
+    double NKp = atof(Param[1]);
+    double NKi = atof(Param[2]);
+    double NKd = atof(Param[3]);
+    for (byte iPID=0; iPID<3 ; iPID++){
+      PIDs[iPID].SetTunings(NKp,NKi,NKd,P_ON_M);
+    }
+    Serial3.print("Nuevas constantes: "+String(NKp)+", "+String(NKi)+", "+String(NKd));
+  }
   // Caso para debugging y demostración, a eliminar en versión final
   else if (Funcion.equals("LED")) {
     byte LedAzul = 12;
@@ -367,7 +388,7 @@ void EjecutarComandos() {
     }
   }
   else {
-    Serial.println("Función desconocida");
+    Serial3.println("Función desconocida");
   }
 }
 // --------------------------------------------------
@@ -375,8 +396,8 @@ void EjecutarComandos() {
 // recibir el caracter especial definido como caracter inicial limpia el buffer, el caso de recibir el caracter especial definido como caracter final ejecuta el análisis de los datos
 // recibidos, todo ocurre mientras hayan datos disponibles en el serial, en caso contrario la función no ejecuta acción.
 void RecepcionSerial() {
-  while (Serial.available() > 0) {
-    Caracter = Serial.read();
+  while (Serial3.available() > 0) {
+    Caracter = Serial3.read();
     if (Caracter == CaractIni) {
       memset(Buffer, '\0', SizeBuffer);
       IndiceCaract = 0;
@@ -414,16 +435,17 @@ void setup() {
   PIDs[1].SetSampleTime(TiempoDeMuestreo);
   PIDs[2].SetSampleTime(TiempoDeMuestreo);
   // Inicialización de la comunicación serial
-  Serial.begin(115200);
-  Serial.println("Pin interruptor 1: "+String(Enc[0]));
-  Serial.println("Pin interruptor 2: "+String(Enc[1]));
-  Serial.println("Pin interruptor 3: "+String(Enc[2]));
-  Serial.println("Interrupcion 1: "+String(Int[0]));
-  Serial.println("Interrupcion 2: "+String(Int[1]));
-  Serial.println("Interrupcion 3: "+String(Int[2]));
+  Serial3.begin(9600);
+  Serial3.println("Pin interruptor 1: "+String(Enc[0]));
+  Serial3.println("Pin interruptor 2: "+String(Enc[1]));
+  Serial3.println("Pin interruptor 3: "+String(Enc[2]));
+  Serial3.println("Interrupcion 1: "+String(Int[0]));
+  Serial3.println("Interrupcion 2: "+String(Int[1]));
+  Serial3.println("Interrupcion 3: "+String(Int[2]));
 }
 void loop() {
   RecepcionSerial();
+  VerificarDetenciones();
   delay(10);
 }
 // --------------------------------------------------
